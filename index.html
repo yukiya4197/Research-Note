@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>課題研究案 概要</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --primary: #3b82f6;
+            --secondary: #8b5cf6;
+            --accent: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4rem 2rem;
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15), transparent 25%);
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        p.subtitle {
+            font-size: 1.2rem;
+            color: #94a3b8;
+            margin-bottom: 3rem;
+            text-align: center;
+            max-width: 600px;
+            animation: fadeIn 1.5s ease-out;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 3rem;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card p {
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            min-height: 80px;
+        }
+
+        .card.advanced::before {
+            background: linear-gradient(90deg, var(--secondary), var(--accent));
+        }
+
+        .icon {
+            font-size: 1.5rem;
+        }
+
+        .link-wrapper {
+            margin-top: auto;
+            display: inline-block;
+        }
+
+        .link-wrapper a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.2s;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .card.advanced .link-wrapper a {
+            color: var(--secondary);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .link-wrapper a:hover {
+            color: #60a5fa;
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .card.advanced .link-wrapper a:hover {
+            color: #a78bfa;
+            background: rgba(139, 92, 246, 0.2);
+        }
+
+        .link-wrapper span {
+            transition: transform 0.2s;
+        }
+
+        .link-wrapper a:hover span {
+            transform: translateX(4px);
+        }
+
+        .badge {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            padding: 0.3rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: auto;
+            letter-spacing: 0.05em;
+        }
+
+        .card.advanced .badge {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* 既存のファイルにアクセスできるリンク設定を追加 */
+        a {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>高校 課題研究アイデア集</h1>
+    <p class="subtitle">取り組めそうなメインテーマと、それを応用した発展系のアイデアをまとめました。</p>
+
+    <div class="container">
+
+        <section>
+            <h2 class="section-title"><span class="icon">🎯</span> メインテーマ</h2>
+            <div class="grid">
+                <div class="card">
+                    <h3>
+                        <span class="icon">📷</span> AIカメラ
+                        <span class="badge">MAIN</span>
+                    </h3>
+                    <p>画像認識などのAI技術を用いて、カメラデバイスに知覚や判断能力を持たせる研究です。</p>
+                    <div class="details-content" id="ai-camera-details"
+                        style="display: block; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <h4 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem;">タイトル:</h4>
+                        <p style="margin-bottom: 1rem; min-height: auto;">AIカメラを用いた商店街の人流計測と活性化</p>
+
+                        <h4 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem;">想定シナリオ:</h4>
+                        <p style="margin-bottom: 1rem; min-height: auto;">
+                            商店街に設置したカメラから、通行人の数や属性（年代・性別など）を自動で計測・データ化し、イベントの効果測定やマーケティングに活用します。</p>
+
+                        <h4 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem;">技術詳細:</h4>
+                        <ul
+                            style="list-style-type: disc; margin-left: 1.5rem; color: #cbd5e1; line-height: 1.6; font-size: 0.95rem;">
+                            <li><strong>モデル:</strong> YOLOなどの軽量な物体検出アルゴリズム</li>
+                            <li><strong>言語・ライブラリ:</strong> Python, OpenCV, PyTorch/TensorFlowなど</li>
+                            <li><strong>ハードウェア:</strong> Raspberry Pi等のエッジデバイス、またはPC連携ウェブカメラ</li>
+                        </ul>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: auto;">
+                        <div class="link-wrapper" style="margin: 0;">
+                            <a href="./ai-camera/AIカメラの導入方法.pdf" target="_blank"
+                                style="width: 100%; justify-content: space-between;">
+                                <span>PDF資料を参照する</span> <span>→</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>
+                        <span class="icon">💻</span> Web開発
+                        <span class="badge">MAIN</span>
+                    </h3>
+                    <p>HTML/CSSやJavaScriptを用いて、自分だけのウェブサイトやウェブアプリを構築する方法を研究します。</p>
+                    <div class="details-content" id="web-dev-details"
+                        style="display: block; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <h4 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem;">タイトル:</h4>
+                        <p style="margin-bottom: 1rem; min-height: auto;">はじめてのWebサイト作成ガイド</p>
+
+                        <h4 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem;">学習概要:</h4>
+                        <p style="margin-bottom: 1rem; min-height: auto;">
+                            Webサイト構築の2つのアプローチ（Wix/WP等のGUIツール活用と、HTML/CSSのコーディング）を比較し、コーディングによる自由度の高い制作方法を学びます。</p>
+
+                        <h4 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem;">技術詳細:</h4>
+                        <ul
+                            style="list-style-type: disc; margin-left: 1.5rem; color: #cbd5e1; line-height: 1.6; font-size: 0.95rem;">
+                            <li><strong>基礎技術:</strong> HTMLによる構造化、CSSによるデザイン</li>
+                            <li><strong>ツール・環境:</strong> ブラウザの開発者ツール、Visual Studio Code</li>
+                            <li><strong>学習手法:</strong> 生成AIをメンターとした段階的な対話型学習</li>
+                            <li><strong>公開:</strong> GitHub Pagesなどを利用した公開・デプロイ</li>
+                        </ul>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: auto;">
+                        <div class="link-wrapper" style="margin: 0;">
+                            <a href="https://yukiya4197.github.io/web-learning/" target="_blank"
+                                style="width: 100%; justify-content: space-between;">
+                                <span>教材サイトを参照する</span> <span>→</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="section-title"><span class="icon">🚀</span> 発展系のアイデア</h2>
+            <div class="grid">
+                <div class="card advanced">
+                    <h3>
+                        <span class="icon">✨</span> お手製プリクラ
+                        <span class="badge">ADVANCED</span>
+                    </h3>
+                    <p>AIカメラ技術とWeb技術を応用して、顔認識フィルターやメイク機能をブラウザ上で動かすアプリを作成します。</p>
+
+                    <div class="details-content" id="snow-details"
+                        style="display: block; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <h4 style="color: var(--secondary); margin-bottom: 0.5rem; font-size: 1.1rem;">タイトル:</h4>
+                        <p style="margin-bottom: 1rem; min-height: auto;">WebARで作るビューティーフィルターアプリ</p>
+
+                        <h4 style="color: var(--secondary); margin-bottom: 0.5rem; font-size: 1.1rem;">仕組み・概要:</h4>
+                        <p style="margin-bottom: 1rem; min-height: auto;">
+                            AIによる骨格認識を用いて、美肌、デカ目、小顔補正や、チークの色・濃さを調整できる「プリクラ風機能」をブラウザだけで実現します。さらに、シャッターボタンを実装すれば、実際に加工した画像をスマホに保存できるアプリへと発展させることも可能です。
+                        </p>
+
+                        <h4 style="color: var(--secondary); margin-bottom: 0.5rem; font-size: 1.1rem;">技術詳細:</h4>
+                        <ul
+                            style="list-style-type: disc; margin-left: 1.5rem; color: #cbd5e1; line-height: 1.6; font-size: 0.95rem;">
+                            <li><strong>AI顔認識:</strong> MediaPipe (Face Landmarker) によるリアルタイムな顔パーツ検出</li>
+                            <li><strong>画像処理:</strong> WebGL と カスタムシェーダー(GLSL) を用いた高速な描画や顔の変形</li>
+                            <li><strong>UI制御:</strong> HTMLのレンジスライダーとカラーピッカーを使った直感的な操作連携</li>
+                        </ul>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: auto;">
+                        <div class="link-wrapper" style="margin: 0;">
+                            <a href="https://yukiya4197.github.io/ai-puri/" target="_blank"
+                                style="width: 100%; justify-content: space-between; background: rgba(139, 92, 246, 0.1); color: var(--secondary);">
+                                <span>アプリを起動する</span> <span>→</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card advanced">
+                    <h3>
+                        <span class="icon">🎙️</span> 声カラー診断
+                        <span class="badge">ADVANCED</span>
+                    </h3>
+                    <p>音声データの解析・AIによる認識をウェブ上で展開し、声のトーンや質からカラーを診断するユニークなアプリケーションです。</p>
+
+                    <div
+                        style="background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--secondary); padding: 1rem; border-radius: 0 8px 8px 0; margin: 1rem 0;">
+                        <p style="margin-bottom: 0.5rem; font-size: 0.95rem; min-height: auto; color: #f8fafc;">
+                            <strong>💡 リンクについて</strong></p>
+                        <p style="margin-bottom: 0.5rem; font-size: 0.9rem; min-height: auto;">
+                            サークル制作版は現在APIキーによる制限で正常に動作しない可能性があります。</p>
+                        <p style="margin-bottom: 0; font-size: 0.9rem; min-height: auto;">
+                            エラーになる場合は、予備サイト（声カラー診断）をご利用ください。</p>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: auto;">
+                        <div class="link-wrapper" style="margin: 0;">
+                            <a href="https://voice-color-check.vercel.app/" target="_blank"
+                                style="width: 100%; justify-content: space-between;">
+                                <span>サークル制作版を開く</span> <span>→</span>
+                            </a>
+                        </div>
+                        <div class="link-wrapper" style="margin: 0;">
+                            <a href="https://voice.koeshindan.jp/?p=evncv6w&utm_source=chatgpt.com" target="_blank"
+                                style="width: 100%; justify-content: space-between; background: rgba(16, 185, 129, 0.1); color: var(--accent);">
+                                <span>予備サイトを開く</span> <span>→</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+
+</body>
+
+</html>

@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beauty Filter + Adjustable Blush</title>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            color: #fff;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            position: absolute;
+            transform: scaleX(-1);
+            /* 鏡面反転 */
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        video {
+            display: none;
+        }
+
+        .ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            min-width: 240px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        .control-group:last-child {
+            border-bottom: none;
+        }
+
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: #ddd;
+        }
+
+        input[type="color"] {
+            border: none;
+            width: 40px;
+            height: 24px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: #ff4081;
+        }
+
+        h3 {
+            margin-top: 0;
+            color: #ff4081;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background: #ff4081;
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #e91e63;
+        }
+
+        button:disabled {
+            background: #555;
+            color: #aaa;
+            cursor: wait;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="ui">
+        <h3>✨ Beauty & Makeup ✨</h3>
+
+        <div class="control-group">
+            <div class="label-row">
+                <label>🎨 チーク (Blush)</label>
+                <input type="color" id="cheekColor" value="#ff9999">
+            </div>
+
+            <div class="label-row"><label>濃さ (Opacity)</label></div>
+            <input type="range" id="cheekRange" min="0" max="1.0" step="0.01" value="0.5">
+
+            <div class="label-row"><label>📏 広さ (Size)</label></div>
+            <input type="range" id="cheekSizeRange" min="0.01" max="0.2" step="0.01" value="0.08">
+        </div>
+
+        <div class="control-group">
+            <label>🥚 美肌 (Smooth Skin)</label>
+            <input type="range" id="skinRange" min="0" max="1.0" step="0.01" value="0.7">
+        </div>
+
+        <div class="control-group">
+            <label>👁️ デカ目 (Big Eyes)</label>
+            <input type="range" id="eyeRange" min="0" max="1.0" step="0.01" value="0.4">
+        </div>
+
+        <div class="control-group">
+            <label>👃 小鼻 (Small Nose)</label>
+            <input type="range" id="noseRange" min="0" max="1.0" step="0.01" value="0.5">
+        </div>
+
+        <div class="control-group">
+            <label>💎 小顔 (V-Line)</label>
+            <input type="range" id="faceRange" min="0" max="1.0" step="0.01" value="0.5">
+        </div>
+
+        <button id="startBtn" disabled>読み込み中...</button>
+        <div id="status" style="margin-top:5px; font-size:0.8rem; color:#ccc; text-align:center;">モデルダウンロード中...</div>
+    </div>
+
+    <div class="container">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="glCanvas"></canvas>
+    </div>
+
+    <script type="module">
+        import { FilesetResolver, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('glCanvas');
+        const gl = canvas.getContext('webgl');
+        const statusDiv = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+
+        // UI Elements
+        const skinRange = document.getElementById('skinRange');
+        const eyeRange = document.getElementById('eyeRange');
+        const noseRange = document.getElementById('noseRange');
+        const faceRange = document.getElementById('faceRange');
+        const cheekRange = document.getElementById('cheekRange');
+        const cheekSizeRange = document.getElementById('cheekSizeRange'); // 追加
+        const cheekColorInput = document.getElementById('cheekColor');
+
+        let faceLandmarker;
+        let runningMode = "VIDEO";
+        let lastVideoTime = -1;
+
+        // 座標データ
+        let leftEyePos = [0.0, 0.0];
+        let rightEyePos = [0.0, 0.0];
+        let nosePos = [0.0, 0.0];
+        let chinPos = [0.0, 0.0];
+        let leftCheekPos = [0.0, 0.0];
+        let rightCheekPos = [0.0, 0.0];
+        let faceWidth = 0.0;
+        let faceDetected = 0.0;
+
+        function hexToRgb(hex) {
+            const bigint = parseInt(hex.slice(1), 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return [r / 255, g / 255, b / 255];
+        }
+
+        const vsSource = `
+      attribute vec2 a_position;
+      attribute vec2 a_texCoord;
+      varying vec2 v_texCoord;
+      void main() {
+        gl_Position = vec4(a_position, 0.0, 1.0);
+        v_texCoord = a_texCoord;
+      }
+    `;
+
+        const fsSource = `
+      precision mediump float;
+      uniform sampler2D u_image;
+      uniform vec2 u_resolution;
+      
+      // シェイプ系
+      uniform vec2 u_leftEye;
+      uniform vec2 u_rightEye;
+      uniform float u_eyeStrength;
+      uniform vec2 u_nose;
+      uniform float u_noseStrength;
+      uniform vec2 u_chin;
+      uniform float u_faceWidth;
+      uniform float u_faceStrength;
+      
+      // スキン & メイク系
+      uniform float u_skinStrength;
+      uniform vec2 u_cheekLeft;
+      uniform vec2 u_cheekRight;
+      uniform vec3 u_cheekColor;
+      uniform float u_cheekStrength;
+      uniform float u_cheekSize; // 追加: チークの広さ
+      uniform float u_hasFace;
+
+      varying vec2 v_texCoord;
+
+      vec2 warpRadial(vec2 uv, vec2 center, float range, float strength) {
+        float aspect = u_resolution.x / u_resolution.y;
+        vec2 diff = uv - center;
+        diff.x *= aspect;
+        float dist = length(diff);
+        float weight = 1.0 - smoothstep(0.0, range, dist);
+        return uv - (uv - center) * weight * strength * 0.3; 
+      }
+
+      vec2 warpFace(vec2 uv, vec2 nose, vec2 chin, float width, float strength) {
+        float faceLen = distance(nose.y, chin.y);
+        float yWeight = smoothstep(nose.y, chin.y, uv.y);
+        float neckLimit = smoothstep(chin.y + faceLen * 0.5, chin.y, uv.y);
+        yWeight *= neckLimit;
+        float distX = abs(uv.x - nose.x);
+        float xWeight = 1.0 - smoothstep(0.0, width * 0.8, distX);
+        float shiftAmount = (uv.x - nose.x) * strength * 0.3;
+        vec2 offset = vec2(shiftAmount * yWeight * xWeight, 0.0);
+        return uv + offset;
+      }
+
+      vec4 gaussianBlur(sampler2D image, vec2 uv, vec2 resolution, float strength) {
+        vec4 color = vec4(0.0);
+        float total = 0.0;
+        vec2 off = vec2(1.0 + strength * 2.0) / resolution; 
+        color += texture2D(image, uv) * 0.227027; total += 0.227027;
+        color += texture2D(image, uv + vec2(off.x, 0.0)) * 0.1945946; total += 0.1945946;
+        color += texture2D(image, uv - vec2(off.x, 0.0)) * 0.1945946; total += 0.1945946;
+        color += texture2D(image, uv + vec2(0.0, off.y)) * 0.1945946; total += 0.1945946;
+        color += texture2D(image, uv - vec2(0.0, off.y)) * 0.1945946; total += 0.1945946;
+        color += texture2D(image, uv + vec2(off.x, off.y)) * 0.1216216; total += 0.1216216;
+        color += texture2D(image, uv - vec2(off.x, off.y)) * 0.1216216; total += 0.1216216;
+        color += texture2D(image, uv + vec2(-off.x, off.y)) * 0.1216216; total += 0.1216216;
+        color += texture2D(image, uv - vec2(-off.x, off.y)) * 0.1216216; total += 0.1216216;
+        return color / total;
+      }
+
+      float getSkinMask(vec3 color) {
+        float cb = -0.169 * color.r - 0.331 * color.g + 0.500 * color.b + 0.5;
+        float cr = 0.500 * color.r - 0.419 * color.g - 0.081 * color.b + 0.5;
+        float skin = 0.0;
+        if (cb > 0.3 && cb < 0.6 && cr > 0.5 && cr < 0.7) skin = 1.0;
+        return skin;
+      }
+
+      // 修正版チーク関数
+      vec3 applyCheek(vec3 baseColor, vec2 uv, vec2 center, vec3 color, float strength, float size) {
+        float aspect = u_resolution.x / u_resolution.y;
+        vec2 diff = uv - center;
+        diff.x *= aspect;
+        
+        float dist = length(diff);
+        
+        // ★修正: サイズ(size)を可変に。デフォルト0.08程度
+        float mask = 1.0 - smoothstep(0.0, size, dist);
+        
+        // マスクが0以下にならないようにクランプ
+        mask = clamp(mask, 0.0, 1.0);
+        
+        // 合成強度調整
+        mask = mask * strength * 0.7; 
+        
+        return mix(baseColor, color, mask);
+      }
+
+      void main() {
+        vec2 uv = v_texCoord;
+        
+        if (u_hasFace > 0.0) {
+            if (u_faceStrength > 0.0) uv = warpFace(uv, u_nose, u_chin, u_faceWidth, u_faceStrength);
+            if (u_eyeStrength > 0.0) {
+                uv = warpRadial(uv, u_leftEye, 0.15, u_eyeStrength);
+                uv = warpRadial(uv, u_rightEye, 0.15, u_eyeStrength);
+            }
+            if (u_noseStrength > 0.0) uv = warpRadial(uv, u_nose, 0.09, -u_noseStrength);
+        }
+
+        vec4 originalColor = texture2D(u_image, uv);
+        vec3 finalColor = originalColor.rgb;
+
+        if (u_skinStrength > 0.0) {
+            vec4 blurredColor = gaussianBlur(u_image, uv, u_resolution, u_skinStrength);
+            float isSkin = getSkinMask(originalColor.rgb);
+            vec3 smoothed = mix(originalColor.rgb, blurredColor.rgb, 0.6 * u_skinStrength);
+            finalColor = mix(finalColor, smoothed, isSkin);
+        }
+
+        if (u_hasFace > 0.0 && u_cheekStrength > 0.0) {
+            // サイズパラメータ(u_cheekSize)を追加で渡す
+            finalColor = applyCheek(finalColor, uv, u_cheekLeft, u_cheekColor, u_cheekStrength, u_cheekSize);
+            finalColor = applyCheek(finalColor, uv, u_cheekRight, u_cheekColor, u_cheekStrength, u_cheekSize);
+        }
+
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `;
+
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error(gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+            return shader;
+        }
+
+        const vertexShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+        const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+        gl.useProgram(program);
+
+        const vertices = new Float32Array([-1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, -1, 1, 0, 0, 1, -1, 1, 1, 1, 1, 1, 0]);
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+        const aPosition = gl.getAttribLocation(program, "a_position");
+        gl.enableVertexAttribArray(aPosition);
+        gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 16, 0);
+
+        const aTexCoord = gl.getAttribLocation(program, "a_texCoord");
+        gl.enableVertexAttribArray(aTexCoord);
+        gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 16, 8);
+
+        const texture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+        const uLocs = {
+            resolution: gl.getUniformLocation(program, "u_resolution"),
+            leftEye: gl.getUniformLocation(program, "u_leftEye"),
+            rightEye: gl.getUniformLocation(program, "u_rightEye"),
+            eyeStrength: gl.getUniformLocation(program, "u_eyeStrength"),
+            nose: gl.getUniformLocation(program, "u_nose"),
+            noseStrength: gl.getUniformLocation(program, "u_noseStrength"),
+            chin: gl.getUniformLocation(program, "u_chin"),
+            faceWidth: gl.getUniformLocation(program, "u_faceWidth"),
+            faceStrength: gl.getUniformLocation(program, "u_faceStrength"),
+            skinStrength: gl.getUniformLocation(program, "u_skinStrength"),
+            cheekLeft: gl.getUniformLocation(program, "u_cheekLeft"),
+            cheekRight: gl.getUniformLocation(program, "u_cheekRight"),
+            cheekColor: gl.getUniformLocation(program, "u_cheekColor"),
+            cheekStrength: gl.getUniformLocation(program, "u_cheekStrength"),
+            cheekSize: gl.getUniformLocation(program, "u_cheekSize"), // 追加
+            hasFace: gl.getUniformLocation(program, "u_hasFace"),
+        };
+
+        async function init() {
+            try {
+                console.log("初期化開始...");
+                statusDiv.innerText = "WASM読み込み中...";
+                const filesetResolver = await FilesetResolver.forVisionTasks(
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+                );
+
+                statusDiv.innerText = "モデル初期化中 (CPU)...";
+                faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+                    baseOptions: {
+                        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
+                        delegate: "CPU"
+                    },
+                    outputFaceBlendshapes: false,
+                    runningMode: runningMode,
+                    numFaces: 1
+                });
+
+                statusDiv.innerText = "準備完了！";
+                startBtn.innerText = "カメラ起動";
+                startBtn.disabled = false;
+                startBtn.addEventListener('click', startCamera);
+            } catch (e) {
+                console.error(e);
+                statusDiv.innerText = "エラー: " + e;
+            }
+        }
+
+        async function startCamera() {
+            startBtn.style.display = 'none';
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                });
+                video.srcObject = stream;
+                video.play();
+                video.addEventListener('loadeddata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    gl.viewport(0, 0, canvas.width, canvas.height);
+                    renderLoop();
+                });
+            } catch (err) {
+                console.error("Camera Error:", err);
+                statusDiv.innerText = "カメラ起動エラー: " + err.message;
+                startBtn.style.display = 'block';
+                startBtn.innerText = "再試行";
+            }
+        }
+
+        function renderLoop() {
+            let startTimeMs = performance.now();
+
+            if (lastVideoTime !== video.currentTime) {
+                lastVideoTime = video.currentTime;
+                const results = faceLandmarker.detectForVideo(video, startTimeMs);
+
+                if (results.faceLandmarks && results.faceLandmarks.length > 0) {
+                    faceDetected = 1.0;
+                    const landmarks = results.faceLandmarks[0];
+                    leftEyePos = [landmarks[468].x, landmarks[468].y];
+                    rightEyePos = [landmarks[473].x, landmarks[473].y];
+                    nosePos = [landmarks[1].x, landmarks[1].y];
+                    chinPos = [landmarks[152].x, landmarks[152].y];
+                    const leftCheek = landmarks[454];
+                    const rightCheek = landmarks[234];
+                    faceWidth = Math.sqrt(Math.pow(leftCheek.x - rightCheek.x, 2) + Math.pow(leftCheek.y - rightCheek.y, 2));
+                    leftCheekPos = [landmarks[117].x, landmarks[117].y];
+                    rightCheekPos = [landmarks[346].x, landmarks[346].y];
+                } else {
+                    faceDetected = 0.0;
+                }
+            }
+
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+
+            gl.uniform2f(uLocs.resolution, canvas.width, canvas.height);
+            gl.uniform2f(uLocs.leftEye, leftEyePos[0], leftEyePos[1]);
+            gl.uniform2f(uLocs.rightEye, rightEyePos[0], rightEyePos[1]);
+            gl.uniform1f(uLocs.eyeStrength, parseFloat(eyeRange.value));
+            gl.uniform2f(uLocs.nose, nosePos[0], nosePos[1]);
+            gl.uniform1f(uLocs.noseStrength, parseFloat(noseRange.value));
+            gl.uniform2f(uLocs.chin, chinPos[0], chinPos[1]);
+            gl.uniform1f(uLocs.faceWidth, faceWidth);
+            gl.uniform1f(uLocs.faceStrength, parseFloat(faceRange.value));
+            gl.uniform1f(uLocs.skinStrength, parseFloat(skinRange.value));
+            gl.uniform2f(uLocs.cheekLeft, leftCheekPos[0], leftCheekPos[1]);
+            gl.uniform2f(uLocs.cheekRight, rightCheekPos[0], rightCheekPos[1]);
+            gl.uniform1f(uLocs.cheekStrength, parseFloat(cheekRange.value));
+
+            // 追加: チークサイズ
+            gl.uniform1f(uLocs.cheekSize, parseFloat(cheekSizeRange.value));
+
+            gl.uniform1f(uLocs.hasFace, faceDetected);
+
+            const rgb = hexToRgb(cheekColorInput.value);
+            gl.uniform3f(uLocs.cheekColor, rgb[0], rgb[1], rgb[2]);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            requestAnimationFrame(renderLoop);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
